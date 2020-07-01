@@ -1,0 +1,23 @@
+html {
+
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    
+    font: Verdana, Helvetica;
+    font-size: 14pt;
+
+    margin: 3em 3ex;
+}
+
+h1 {
+    font-size: 160%;
+    color: #a00;
+}
+
+a {
+    text-decoration: none;
+}

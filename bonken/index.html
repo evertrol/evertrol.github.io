@@ -1,0 +1,253 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bonken</title>
+<link rel="icon" href="data:;base64,iVBORw0KGgo=">
+<link rel="stylesheet" href="bonken.css">
+</head>
+<body>
+  <nav>
+<button class="tablink" id="playersTab" onclick="openPage('players')">Players</button>
+<button class="tablink" id="selectTab" onclick="openPage('select')">Select</button>
+<button class="tablink" id="biddingTab" onclick="openPage('bidding')">Bidding</button>
+<button class="tablink" id="resultsTab" onclick="openPage('results')">Results</button>
+<button class="tablink" id="scoreTab" onclick="openPage('score')">Score</button>
+<button class="tablink" id="helpTab" onclick="openPage('help')">Help</button>
+  </nav>
+  <main id="app">
+
+  <section id="players">
+	<h2>Players</h2>
+<table>
+  <tr v-for="(player, index) in players" :key="index">
+  <td class="name"><input :id="'player' + index + 'name'" :name="'player' + index" type="text" :placeholder="player.name" v-model="player.name"></td></tr>
+</table>
+
+<p>Who has the seven of spades?</p>
+<select id="startingPlayer" @change="selectStartingPlayer">
+  <option disabled selected>-- Choose a player --</option>
+  <option v-for="(player, index) in players" :key="'start' + index" value="player.name">{{ player.name }}</option>
+</select>
+<button id="start" @click="start" disabled>Start</button>
+
+<div id="showSaveGames" style="display: none;">
+  <hr>
+<h3>Saved games</h3>
+<select id="saveGames" @change="selectSavedGame">
+  <option disabled selected> -- Select a saved game --</option>
+  <!-- Note: using saveGames.reverse() directly here will yield a Vue.js warning, hence it is made into a computed method -->
+  <option v-for="game in reversedSaveGames">{{ game.date }}</option>
+</select>
+<button id="loadGame" @click="loadGame" disabled>Load game</button>
+</div>
+
+</section>
+
+<section id="select">
+<h2>Select game</h2>
+
+<p v-if="gamesPlayed.size > 0">{{ players[(icurrent + 2) % 4].name }} shuffles and deals.</p>
+
+
+<p v-for="skip in skips" class="skip">{{ skip.name }} skips a game</p>
+<p id="select">{{ currentPlayer.name }}, pick a game!</p>
+
+<select id="selectGame" onchange="document.getElementById('newGame').disabled = false">
+  <option value="" disabled selected>-- Select a game --</option>
+  <option value="" disabled>-- Minus games: --</option>
+  <option v-for="(game, index) in minusGames" :value="index" :disabled="gamesPlayed.get(game)">{{ game.name }} ({{ game.value }})</option>
+  <option value="" disabled>-- Plus games: --</option>
+  <option v-for="(game, index) in plusGames" :value="index + 8" :disabled="gamesPlayed.get(game) || currentPlayer.plus">{{ game.name }} ({{ game.value }})</option>
+</select>
+<button @click="newGame" id="newGame" disabled>Play!</button>
+</section>
+
+<section id="bidding">
+  <button @click="resetGame" class="reset">Reset current game</button>
+  <h2>Bidding</h2>
+  <div class="chooser">
+  <p>{{ currentPlayer.name }} has chosen <em>{{ currentGame.name }}</em>.</p>
+  <p>{{ players[(icurrent + 1) % 4].name }} starts the bidding.</p>
+  <p>{{ players[(icurrent + 3) % 4].name }} leads.</p>
+  </div>
+
+<table class="bids">
+  <thead>
+	<tr>
+	  <th rowspan="2"></td>
+	  <th style="text-align: center;" colspan="4">Versus</td>
+    </tr>
+	<tr>
+	  <th v-for="(player, i) in players" :class="activePlayer(i)" :key="player.name">{{ player.name }}</th>
+    </tr>
+  </thead>
+  <tbody>
+  <tr v-for="(row, i) in bids" :class="`bids${i} ${activePlayer(i)}`">
+	<th :class="activePlayer(i)">{{ players[i].name }}</th>
+    <td v-for="(_, j) in row" :class="activePlayer(j)"><input type="checkbox" :class="'bid' + (i === j ? ' unavailable' : '')" :id="`bid${i}vs${j}`" :data-i="i" :data-j="j" v-model="bids[i][j]" @click="updateCheckBoxes" disabled></td>
+  </tr>
+  </tbody>
+</table>
+<button id="confirmBids" @click="confirmBids">Confirm bids</button>
+<br>
+<div id="diagramBidding"></div>
+</section>
+
+<section id="results">
+  <button @click="resetGame" class="reset">Reset current game</button>
+  <h2>Results</h2>
+    <div class="chooser">
+  <p>{{ currentPlayer.name }} has chosen <em>{{ currentGame.name }}</em>.</p>
+  <p>{{ players[(icurrent + 1) % 4].name }} starts the bidding.</p>
+  <p>{{ players[(icurrent + 3) % 4].name }} leads.</p>
+  </div>
+
+<table>
+  <tbody class="bids">
+  <tr v-for="(row, i) in bids" :class="`bids${i}`">
+	<th>{{ players[i].name }}</th>
+	<td :id="'player' + i + '_tricks_td'" class="numberOfTricks" style="display: none"><input :id="'player' + i + 'Tricks'" type="number" value="0" min="0" max="13" class="ntricks"></td>
+	<td :id="`player${i}_score_td`" style="display: none" class="roundScores"></td>
+  </tr>
+  </tbody>
+</table>
+
+<button id="calcScores" @click="calcScores" style="display: none;">Calculate scores</button>
+<div id="diagramResults"></div>
+</section>
+
+<section id="score">
+  <button @click="resetGame" class="reset">Reset current game</button>
+  <h2>Score</h2>
+
+<button id="nextRound" @click="nextRound" style="display: none;">Next round</button>
+  <p id="winner"></p>
+
+<table class="score">
+  <thead>
+  <tr>
+	<th colspan="2"></th>
+	<th v-for="player in players" :key="player.name">{{ player.name }}</th>
+  </tr>
+  </thead>
+  <tbody>
+  <tr><th colspan="6">Minus game</th></tr>
+  <tr v-for="(game, index) in minusGames" :key="'minusGame' + index">
+    <td :id="`score${index}`">{{ game.name }}<br><span>{{ gamePlayed(game) }}</span</td>
+    <td class="value">{{ game.value > 0 ? '+' : '' }}{{ game.value }} </td>
+	<td v-for="j in 4" :key="game.short + j" class="value">{{ scores[game.short][j-1] }}</td>
+  </tr>
+  <tr></tr>
+  <tr><th colspan="6">Plus games</th></tr>
+  <tr v-for="(game, index) in plusGames" :key="'plusGame' + index">
+    <td :id="`score${index + 8}`">{{ game.name }}<br><span>{{ Object(gamesPlayed.get(game)).turn }}{{ Object(gamesPlayed.get(game)).turn ? '; ' : '' }}{{ Object(Object(gamesPlayed.get(game)).player).name }}</span></td>
+	<td class="value">{{ game.value > 0 ? '+' : '' }}{{ game.value }} </td>
+	<td v-for="j in 4" class="value">{{ scores[game.short][j-1] }}</td>
+  </tr>
+  <tr><td colspan="6"></td></tr>
+  <tr class="totals">
+	<th colspan="2">Totals:</th>
+	<td class="value" v-for="total in totals">{{ total }}</td>
+  </tr>
+  </tbody>
+</table>
+
+</section>
+
+<section id="help">
+  <ul>
+	<li><a href="#playing">Playing a game</a></li>
+	<li><a href="#reset">Reset a current game</a></li>
+	<li><a href="#rules">Bonken general rules</a></li>
+	<li><a href="#gamerules">Individual game rules</a></li>
+	<li><a href="#about">About &amp; Credits</a></li>
+  </ul>
+
+<a name="playing"><h3>Playing a game</h3></a>
+<p>To play the game, simply enter the player names under the "Players" heading and indicate who has the seven of spades: this will be the starting player. The game should then lead you through the steps in order, although it will not explain how to play the individual games. See below for that.</p>
+
+<a name="reset"><h3>Reset a current game</h3></a>
+<p>You can reset a current game, for example when someone has made a mistake, or cards have been misdealt. The current game will be reset and no score entered. This is possible until the moment you hit the "next round" button in the "Score" section: at that point, the points have been definitely entered.</p>
+
+  <a name="rules"><h2>The rules of Bonken</h2></a>
+
+  <p>Bonken consists of 13 separate games, 8 minus games and 5 plusgames. With every game a different number of points can be earned.The way these points can be earned is different for different games. The so-called minus games yield minus points and plus gamesyield plus points. There are as many plus points as there are minus points, so that the total number of points of all playersis zero. The objective of the game is to get as many points as possible. In a bonk session 12 games will be played, and every game only once. Everybody is obliged to play a plus game once, and only once. Therefore 1 plus game will never be played.</p>
+  <p>Bonken is played with 52 cards. 13 cards per suit (Spades, Hearts, Diamonds and Clubs). The order of the cards for all the games from low to high is: 2, 3, 4, 5, 6, 7, 8, 9, 10, jack, queen, king, ace (with an exception for the ace in the game of dominoes).</p>
+
+  <p>One person deals the cards. The person who sits opposite the dealer chooses the game. The person on the left of the chooser starts the bidding (see below). And the person on the right of the chooser leads. The very first game, though, is chosen by the person who has the seven of spades in his hand. Each player has to follow suit when possible (for the dominoes game see below). The person who wins the trick leads next. After every game we rotate clockwise for the next dealer, chooser, bidder and the person who leads first. Towards the end of the game, it could be that a chooser is passed. This situation occurs when all minus games have been played and the chooser has already chosen a plus game.</p>
+
+  <p>At the bidding phase you can double an opponent, if you think you will do better than him/her. In this way you can earn extra points. Everyone, except the chooser, is allowed to double everybody; the chooser can only double those players who doubled against him. Some jargon: "Zalen" means to double everybody, "Ruitenwissen" means to double everybody but the chooser.</p>
+
+  <p>The score due to the doubling is as follows. For every connection (0, 1 or 2) between two players, the <em>difference</em> in points will be added to one player’s score and subtracted from the other player’s.</p>
+
+  <a name="gamerules"><h2>Rules of the individual games</h2></a>
+
+  <ul><li>Minus games:
+	  <ul>
+		<li><a href="#heartspoints">Points of hearts</a></li>
+		<li><a href="#kingsjacks">Kings &amp; Jacks</a></li>
+		<li><a href="#kingheart">King of hearts</a></li>
+		<li><a href="#queens">Queens</a></li>
+		<li><a href="#duck">Duck</a></li>
+		<li><a href="#dominoes">Dominoes</a></li>
+		<li><a href="#713trick">7th &amp; 13th trick</a></li>
+		<li><a href="#lasttrick">Last trick</a></li>
+	</ul></li>
+	<li>Plus games:<ul>
+		<li><a href="#spades">Spades trump</a></li>
+		<li><a href="#hearts">Hearts trump</a></li>
+		<li><a href="#diamonds">Diamonds trump</a></li>
+		<li><a href="#clubs">Clubs trump</a></li>
+		<li><a href="#notrump">No trump</a></li>
+	  </ul>
+	</li>
+  </ul>
+
+  <h3>Minus games</h3>
+  <dl>
+	<dt><a name="heartspoints">Points of hearts</a></dt>
+	<dd>Every heart in your trick is 10 minus points. The person who leads is not allowed to lead with hearts, unless he or she has no other cards left.</dd>
+	<dt><a name="kingsjacks">Points &amp; Jacks</a></dt>
+	<dd>Every king or jack in your trick is 25 minus points.</dd>
+	<dt><a name="kinghearts">King of hearts</a></dt>
+	<dd>The king of hearts in your trick gives 100 minus points. The person who leads is not allowed to lead with hearts, unless he or she has no other cards left. When during a trick you can’t follow suit and you have the king of hearts in your hand youare obliged to play it at that moment</dd>
+	<dt><a name="queens">Queens</a></dt>
+	<dd>Every queen in your trick is 45 minus points.</dd>
+	<dt><a name="duck">Duck</a></dt>
+	<dd>You have to get as few tricks as possible. Every trick you get is 10 minus points.</dd>
+	<dt><a name="dominoes">Dominoes</a></dt>
+	<dd>4 rows of cards have to be made, on the table, one for every suit. The first player starts by putting down an 8 (this one you can always play). The next player lays down an adjacent card (a 7 or a 9) of the same suit, or starts a new row by laying down an 8 of a different suit. In case you can’t put down an adjacent card or you don’t have an 8, you pass, and the next player’s turn is up.When you can put down an adjacent card or an 8, you have to put it down. So you can’t pass, if you are able to play. The ace can be put below the 2 or above the king. The very first ace which is put down also decides where all other aces will be put down. All the aces will be below the 2 or above the king. The person who puts down the last card loses and gets 100 minus points.</dd>
+	<dt><a name="713trick">7th &amp; 13th trick</a></dt>
+	<dd>You shouldn’t get trick no. 7 or no. 13. Such a trick gives 50 minus points. Trick no. 13 is the last trick.</dd>
+	<dt><a name="lasttrick">Last trick</a></dt>
+	<dd>You shouldn’t get the last trick. If you do get it, you get 100 minus points.</dd>
+  </dl>
+    <h3>Minus games</h3>
+	<dl>
+	  <dt><a name="spades">Spades trump</a></dt>
+	  <dd>You have to get as many tricks as possible. Every trick gives 20 points. A trump card is always higher than a card of a different suit. You are only allowed to play a trump card when you can’t follow suit; it is not mandatory, however, to play a trump in such a situation.</dd>
+	  <dt><a name="hearts">Hearts trump</a></dt>
+	  <dd>You have to get as many tricks as possible. Every trick gives 20 points. A trump card is always higher than a card of a different suit. You are only allowed to play a trump card when you can’t follow suit; it is not mandatory, however, to play a trump in such a situation.</dd>
+	  <dt><a name="diamonds">Diamonds trump</a></dt>
+	  <dd>You have to get as many tricks as possible. Every trick gives 20 points. A trump card is always higher than a card of a different suit. You are only allowed to play a trump card when you can’t follow suit; it is not mandatory, however, to play a trump in such a situation.</dd>
+	  <dt><a name="clubs">Clubs trump</a></dt>
+	  <dd>You have to get as many tricks as possible. Every trick gives 20 points. A trump card is always higher than a card of a different suit. You are only allowed to play a trump card when you can’t follow suit; it is not mandatory, however, to play a trump in such a situation.</dd>
+	  <dt><a name="notrump">No trump</a></dt>
+	  <dd>You have to get as many tricks as possible. Every trick gives 20 points. There are no trump cards: if you can’t follow suit, you are allowed to play any other card, but you can’t trump the trick.</dd>
+	</dl>
+
+	<a name="about"><h2>Credits</h2></a>
+	<p>The source code for this app can be found at <a href="https://gitlab.com/evertrol/jsbonk">https://gitlab.com/evertrol/jsbonk</a>.
+  <p>Credits to Martin "Smartie" Heemskerk, for writing down the game rules, explaining the rules, and dragging other people into the game.</p>
+
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/vue@2.6.12"></script>
+
+<script src="bonken.min.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,149 @@
+html, body, main {
+  margin: 0;
+  padding: 0;
+  color: #000;
+  background-color: #e8eceb; }
+
+main {
+  padding-top: 7ex; }
+
+nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 7ex;
+  color: #fff;
+  background-color: #2d3e4e;
+  z-index: 1; }
+
+ul {
+  list-style: none inside ''; }
+
+button {
+  border-radius: 10px;
+  border: none;
+  padding: 5px 15px;
+  color: #fff;
+  background-color: #e09e50; }
+
+a {
+  color: #e09e50;
+  text-decoration: none; }
+
+h1, h2, h3, h4 {
+  color: #7cada9; }
+
+table.score tr:nth-child(even) {
+  background-color: #7cada9; }
+
+table.score tbody tr.totals {
+  background-color: #e09e50; }
+
+.activePlayer {
+  background-color: #e09e50; }
+
+button.reset {
+  z-index: -1;
+  position: relative;
+  right: 2em;
+  margin-top: 0;
+  padding-top: 0; }
+
+button.tablink {
+  float: left;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  border-radius: 0;
+  border: none;
+  padding: 14px 16px;
+  font-size: 17px;
+  width: 16.6%;
+  visibility: hidden;
+  color: #fff;
+  background-color: #2d3e4e;
+  height: 7ex; }
+
+.tablink:first-child, .tablink:last-child {
+  visibility: visible; }
+
+.tablink:first-child {
+  background-color: #7cada9; }
+
+.tablink:hover {
+  background-color: #7cada9; }
+
+/* Style the tab content (and add height:100% for full page content) */
+section {
+  display: none;
+  padding: 20px 20px;
+  height: 100%;
+  display: none; }
+
+section#players {
+  display: block; }
+
+table.score {
+  border-collapse: collapse; }
+
+table.score td, table.score th {
+  border: none; }
+
+table.score thead th {
+  border-top: none; }
+
+table.score thead th:last-child {
+  border-right: none; }
+
+table.score td:nth-child(2), table.score thead th:nth-child(1) {
+  border-right: solid 2px black; }
+
+table.score td:first-child, table.score th:first-child {
+  border-left: none; }
+
+table.score tr:last-child td, table.score tr:last-child th {
+  border-bottom: none; }
+
+table.score tbody tr:first-child th {
+  border-right: none; }
+
+table.score tr:last-child td:first-child {
+  border-right: solid 2px black; }
+
+table.score tr:last-child td:nth-child(2) {
+  border-right: none;
+  border-left: solid 2px black; }
+
+table.score td span {
+  font-size: 80%;
+  font-style: italic; }
+
+th {
+  text-align: left; }
+
+thead td.name input {
+  text-align: right; }
+
+td.value {
+  text-align: right; }
+
+input.ntricks {
+  width: 5ex; }
+
+input[type="checkbox"].unavailable {
+  visibility: hidden; }
+
+@media screen and (max-width: 480px) {
+  .tablink {
+    font-size: 13px;
+    padding: 8px; }
+  #score {
+    padding-left: 10px; } }
+
+@media screen and (min-width: 480px) {
+  table.score td, table.score th {
+    padding: 2px 5px; } }
+
+:disabled {
+  opacity: 0.4; }
